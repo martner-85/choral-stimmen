@@ -38,6 +38,58 @@ pip install -r requirements.txt        # numpy + pymupdf (für PDFs)
 pip install homr                       # Notenerkennung, nur für PDF/Bild nötig
 ```
 
+### Wenn `pip` fehlt
+
+Zuerst prüfen, ob Python überhaupt installiert ist:
+`python3 --version` (Linux/macOS) bzw. `python --version` (Windows).
+
+**Windows:** Der Installer von [python.org](https://www.python.org/downloads/)
+enthält pip immer. Falls Python installiert ist, aber `pip` fehlt:
+
+```bat
+python -m ensurepip --upgrade
+python -m pip install -r requirements.txt
+```
+
+**Debian/Ubuntu:** pip und numpy direkt über die Paketverwaltung (ohne pip):
+
+```bash
+sudo apt install python3-pip python3-numpy python3-fitz
+pip install --user homr    # nur für PDF-Eingaben nötig
+```
+
+**Fedora/RHEL:**
+
+```bash
+sudo dnf install python3-pip python3-numpy
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install python
+```
+
+**Universeller Fallback** (funktioniert überall, wo Python ≥ 3.8 vorhanden ist):
+
+```bash
+python3 -m ensurepip --upgrade
+python3 -m pip install --user -r requirements.txt
+python3 -m pip install --user homr
+```
+
+Falls `ensurepip` fehlt (bei manchen Linux-Distributionen), pip mit Python
+selbst nachladen:
+
+```bash
+python3 -c "import urllib.request; urllib.request.urlretrieve('https://bootstrap.pypa.io/get-pip.py', 'get-pip.py')"
+python3 get-pip.py --user
+```
+
+Sauberer ist übrigens eine virtuelle Umgebung – `python3 -m venv .venv`
+richtet sie inklusive pip ein (`source .venv/bin/activate` bzw.
+`.venv\Scripts\activate` unter Windows).
+
 Die OMR-Modelle von `homr` werden beim ersten Lauf automatisch geladen.
 
 ## Verwendung
