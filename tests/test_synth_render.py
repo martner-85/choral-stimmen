@@ -33,10 +33,26 @@ class TestSynth(unittest.TestCase):
         self.assertGreater(np.max(np.abs(audio)), 0.01)
 
     def test_vowels_differ(self):
+        from dataclasses import replace
+
         score = _score()
-        a = synth.render_vocal(score.parts[0].notes, 90.0, 16.0, vowel="a")
-        u = synth.render_vocal(score.parts[0].notes, 90.0, 16.0, vowel="u")
+        notes = [replace(n, syllable=None) for n in score.parts[0].notes]
+        a = synth.render_vocal(notes, 90.0, 16.0, vowel="a")
+        u = synth.render_vocal(notes, 90.0, 16.0, vowel="u")
         self.assertGreater(np.max(np.abs(a - u)), 0.01)
+
+    def test_syllables_are_sung(self):
+        score = _score()
+        with_text = synth.render_vocal(score.parts[0].notes, 90.0, 16.0)
+        without_text = synth.render_vocal(
+            [
+                type(n)(n.onset, n.duration, n.midi, None)
+                for n in score.parts[0].notes
+            ],
+            90.0,
+            16.0,
+        )
+        self.assertGreater(np.max(np.abs(with_text - without_text)), 0.01)
 
     def test_vocal_pitch_is_dominant(self):
         score = _score()

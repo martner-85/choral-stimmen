@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from . import midiio, omr, render
+from . import midiio, omr, render, voices
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -62,6 +62,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Auflösung beim Rastern von PDF-Seiten (Standard: 200)",
     )
     parser.add_argument(
+        "--lage",
+        default="auto",
+        choices=["auto", "original"],
+        help=(
+            "'auto' passt die Oktave an die erkannte Stimmlage an (z. B. Tenor "
+            "eine Oktave tiefer) und singt mit stimmtypischem Klang; "
+            "'original' lässt die notierte Oktave unverändert. Standard: auto"
+        ),
+    )
+    parser.add_argument(
+        "--lyrics",
+        default="auto",
+        choices=["auto", "aus"],
+        help=(
+            "'auto' erkennt den Liedtext (Silben) und singt ihn: bei MusicXML "
+            "aus den eingebetteten Lyrics, bei PDF/Bild per Texterkennung (OCR). "
+            "Standard: auto"
+        ),
+    )
+    parser.add_argument(
         "--no-count-in",
         action="store_true",
         help="Keinen Takt Zählimpuls voranstellen",
@@ -103,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Notenerkennung läuft (das kann je Seite einige Minuten dauern) ...")
 
     try:
-        score = omr.load_any(args.eingabe, dpi=args.omr_dpi)
+        score = omr.load_any(args.eingabe, dpi=args.omr_dpi, lyrics=args.lyrics)
     except omr.OmrError as exc:
         print(f"Fehler: {exc}", file=sys.stderr)
         return 2
@@ -114,6 +134,9 @@ def main(argv: list[str] | None = None) -> int:
     if not score.parts:
         print("Fehler: Keine Notenstimmen in der Datei gefunden.", file=sys.stderr)
         return 2
+
+    if args.lage == "auto":
+        score = voices.apply_voice_ranges(score)
 
     options = render.RenderOptions(
         tempo_scale=args.tempo_scale,
@@ -133,7 +156,19 @@ def main(argv: list[str] | None = None) -> int:
 
     bpm = render.effective_tempo(score, options)
     count_in_beats = score.beats_per_measure if options.count_in else 0.0
-    print(f"Stimmen erkannt: {len(score.parts)} | Tempo: {bpm:.0f} BPM")
+    syllable_count = sum(
+        1 for p in score.parts for n in p.notes if n.syllable
+    )
+    stimmlagen = []
+    for part in score.parts:
+        vt = voices.detect_voice_type(part)
+        stimmlagen.append(
+            {"soprano": "Sopran", "alto": "Alt", "tenor": "Tenor", "bass": "Bass"}.get(vt, "?")
+        )
+    print(
+        f"Stimmen erkannt: {len(score.parts)} ({', '.join(stimmlagen)}) | "
+        f"Tempo: {bpm:.0f} BPM | Silben: {syllable_count}"
+    )
 
     for filename, data in render.render_all(score, options).items():
         render.write_wav(os.path.join(out_dir, filename), data, options.sr)

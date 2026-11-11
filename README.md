@@ -15,15 +15,27 @@ Stimme wird als menschlich klingende Singstimme (Vokalsynthese) erzeugt, die
 2. **Stimmen trennen:** Jede Part wird als eigene Stimme behandelt; mehrere
    Stimmen innerhalb einer Part (z. B. S/A im Diskant- und T/B im Bass-System)
    werden automatisch getrennt. Fehlen Stimmnamen, werden sie aus der
-   Tonlage geschätzt (Sopran/Alt/Tenor/Bass).
-3. **Synthese:**
+   Tonlage geschätzt (Sopran/Alt/Tenor/Bass); bei vier namenlosen Stimmen in
+   üblicher Anordnung gilt die Standardfolge Sopran/Alt/Tenor/Bass.
+3. **Texterkennung:** Vorhandene Liedtexte werden übernommen – bei MusicXML
+   direkt aus den eingebetteten Lyrics, bei PDF/Bild per Texterkennung (OCR).
+   Die Singstimme spricht die Silben des Textes nach (inkl. Umlauten und
+   Diphthongen wie „ei", „eu"), mit Ansatz der Anfangskonsonanten.
+4. **Stimmlage:** Die erkannte Stimmlage (Sopran/Alt/Tenor/Bass) steuert
+   Klangfarbe (Formanten) und Tonumfang der Synthese. Mit `--lage auto`
+   (Standard) wird zusätzlich eine offensichtlich falsch erkannte Oktave
+   korrigiert – z. B. ein Tenor, der wegen des Transpositionsschlüssels
+   eine Oktave zu hoch gelesen wurde. Mit `--lage original` bleibt die
+   notierte Oktave unverändert.
+5. **Synthese:**
    - **Gesangsstimme:** Formant-Synthese (Kehlkopf-Quelle + Vokal-Formanten),
      mit Vibrato, Jitter und Atemrauschen – klingt wie ein gesungenes
      „Aah/Ooh/Eh/Uuh". Jede Stimme erhält standardmäßig einen eigenen Vokal,
-     damit man sie akustisch gut unterscheiden kann.
+     damit man sie akustisch gut unterscheiden kann; ist ein Text erkannt,
+     werden stattdessen dessen Silben gesungen.
    - **Klavierbegleitung:** additive Synthese mit inharmo­nischen Teiltönen,
      Hämmer-Geräusch und typischem Ausklang.
-4. **Ausgabe pro Stimme:**
+6. **Ausgabe pro Stimme:**
    - `<Stimme> (Gesang solo).wav` – nur die eigene Stimme gesungen
    - `<Stimme> (Gesang + Klavier).wav` – eigene Stimme laut gesungen,
      übrige Stimmen als leise Klavierbegleitung
@@ -106,6 +118,9 @@ python -m choir_audio noten.musicxml --bpm 80 --no-count-in --modes gesang-solo
 
 # alle Stimmen mit demselben Vokal singen lassen
 python -m choir_audio noten.pdf --vokal a
+
+# notierte Oktaven unverändert lassen, ohne Texterkennung
+python -m choir_audio noten.pdf --lage original --lyrics aus
 ```
 
 ### Optionen
@@ -116,7 +131,9 @@ python -m choir_audio noten.pdf --vokal a
 | `--tempo-scale` | Tempofaktor, z. B. `0.7` (Standard `1.0`) |
 | `--bpm` | Tempo überschreiben |
 | `--others-gain` | Lautstärke der Klavierbegleitung der übrigen Stimmen (Standard `0.35`) |
-| `--vokal` | Vokal der Gesangssynthese: `auto` (je Stimme a/o/e/u), `a`, `e`, `o`, `u` |
+| `--vokal` | Vokal der Gesangssynthese: `auto` (je Stimme a/o/e/u), `a`, `e`, `o`, `u`; bei erkanntem Text werden die Textsilben gesungen |
+| `--lage` | `auto` (Standard): Oktave an die erkannte Stimmlage anpassen (z. B. Tenor eine Oktave tiefer); `original`: notierte Oktaven beibehalten |
+| `--lyrics` | `auto` (Standard): Liedtext erkennen und singen (MusicXML-Lyrics bzw. OCR bei PDF/Bild); `aus`: ohne Text |
 | `--a4` | Stimmton in Hz (Standard `440`) |
 | `--omr-dpi` | Auflösung beim Rastern von PDF-Seiten (Standard `200`) |
 | `--no-count-in` | ohne Zählimpuls-Takt |
@@ -135,9 +152,26 @@ Hinweise:
   gescannten, schiefen oder dicht gesetzten Vorlagen. Kontrolliere die
   erzeugten MIDI-Dateien oder die Stimmenzahl im Log.
 - Satzteile mit Oktav-Transpositionsschlüsseln (z. B. Tenor im
-  Violinschlüssel mit 8) können eine Oktave zu hoch erkannt werden.
+  Violinschlüssel mit 8) können eine Oktave zu hoch erkannt werden; mit
+  `--lage auto` (Standard) wird das automatisch korrigiert.
 - Für verlässliche Ergebnisse ist MusicXML-Export aus dem Notensatzprogramm
-  der PDF-Erkennung immer vorzuziehen.
+  der PDF-Erkennung immer vorzuziehen – auch für den Text: Eingebettete
+  MusicXML-Lyrics sind zuverlässiger als OCR.
+
+### Texterkennung (Liedtext)
+
+Bei PDFs und Bildern wird der Liedtext unter den Notensystemen per OCR
+([RapidOCR](https://github.com/RapidAI/RapidOCR), wird mit `homr`
+mitinstalliert) erkannt und den Stimmen zugeordnet. Dabei gilt:
+
+- Die Zuordnung setzt ein **Offenpartitur-Layout** voraus (ein Notensystem
+  pro Stimme, Textzeile unter dem zugehörigen System). Bei geschlossener
+  Partitur (zwei Systeme mit je zwei Stimmen) ist die Silbenzuordnung
+  unzuverlässig.
+- OCR ist nicht perfekt: benachbarte Wörter können zu einer Silbe
+  zusammenrutschen („demHerrn") und deutsche Umlaute werden nicht immer
+  korrekt erkannt. Mit `--lyrics aus` wird der Text ignoriert und wie
+  bisher ein reiner Vokal gesungen.
 
 ## Beispiel
 

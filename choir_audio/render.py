@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import synth
+from . import synth, voices
 from .musicxml import Score, VoicePart
 
 MODE_LABELS = {
@@ -28,6 +28,7 @@ class RenderOptions:
     count_in: bool = True
     others_gain: float = 0.35
     vowel: str = "auto"
+    fit_range: bool = True
     modes: tuple[str, ...] = ("gesang-solo", "gesang-klavier", "klavier")
     midi: bool = True
     sr: int = synth.SAMPLE_RATE
@@ -52,9 +53,11 @@ def total_beats_of(score: Score) -> float:
     return max(measure, ceil(end / measure) * measure)
 
 
-def vowel_for_part(index: int, options: RenderOptions) -> str:
+def vowel_for_part(index: int, options: RenderOptions, voice_type: str | None) -> str:
     if options.vowel != "auto":
         return options.vowel
+    if voice_type:
+        return voices.VOICE_DEFAULT_VOWEL[voice_type]
     return AUTO_VOWELS[index % len(AUTO_VOWELS)]
 
 
@@ -78,9 +81,16 @@ def render_all(score: Score, options: RenderOptions) -> dict[str, np.ndarray]:
     vocal_audio: list[tuple[VoicePart, np.ndarray]] = []
     piano_audio: list[tuple[VoicePart, np.ndarray]] = []
     for index, part in enumerate(score.parts):
-        vowel = vowel_for_part(index, options)
+        voice_type = voices.detect_voice_type(part)
+        vowel = vowel_for_part(index, options, voice_type)
         vocal = synth.render_vocal(
-            part.notes, bpm, total_beats, options.sr, options.a4, vowel
+            part.notes,
+            bpm,
+            total_beats,
+            options.sr,
+            options.a4,
+            vowel,
+            voice_type=voice_type,
         )
         vocal = synth.normalize(vocal, VOCAL_PEAK)
         vocal_audio.append((part, _place(vocal, n_total, count_in_sec, options.sr)))

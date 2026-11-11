@@ -4,7 +4,9 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from choir_audio.musicxml import load_score
+from choir_audio.musicxml import Score, load_score, guess_generic_voices
+from choir_audio.omr import merge_scores
+from choir_audio.musicxml import NoteEvent, VoicePart
 
 EXAMPLE = os.path.join(
     os.path.dirname(__file__), "..", "examples", "chorale.musicxml"
@@ -76,6 +78,37 @@ class TestMusicXml(unittest.TestCase):
             self.assertEqual(score.parts[1].notes[0].midi, 64)
         finally:
             os.unlink(path)
+
+    def test_generic_four_parts_get_satb_order(self):
+        parts = [
+            VoicePart(part_id=f"P{i + 1}", part_name="Voice", voice="1")
+            for i in range(4)
+        ]
+        for part, midi in zip(parts, (64, 60, 55, 48)):
+            part.notes.append(NoteEvent(onset=0.0, duration=1.0, midi=midi))
+        score = Score(parts=parts, tempo_bpm=100.0, beats_per_measure=4.0)
+        guess_generic_voices(score)
+        self.assertEqual(
+            [p.guessed_voice for p in score.parts],
+            ["Sopran", "Alt", "Tenor", "Bass"],
+        )
+
+    def test_generic_single_part_uses_range(self):
+        part = VoicePart(part_id="P1", part_name="Voice", voice="1")
+        part.notes.append(NoteEvent(onset=0.0, duration=1.0, midi=41))
+        score = Score(parts=[part], tempo_bpm=100.0, beats_per_measure=4.0)
+        guess_generic_voices(score)
+        self.assertEqual(score.parts[0].guessed_voice, "Bass")
+
+    def test_merge_preserves_voice_guess(self):
+        def page_score():
+            part = VoicePart(part_id="P1", part_name="Voice", voice="1")
+            part.notes.append(NoteEvent(onset=0.0, duration=1.0, midi=55))
+            return Score(parts=[part], tempo_bpm=100.0, beats_per_measure=4.0)
+
+        merged = merge_scores([page_score(), page_score()])
+        self.assertEqual(merged.parts[0].guessed_voice, "Alt")
+        self.assertEqual(len(merged.parts[0].notes), 2)
 
     def test_tied_notes_merged(self):
         import tempfile

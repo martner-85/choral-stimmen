@@ -15,6 +15,7 @@ class NoteEvent:
     onset: float
     duration: float
     midi: int
+    syllable: str | None = None
 
 
 @dataclass
@@ -124,6 +125,21 @@ def _is_generic_name(name: str) -> bool:
     return parts[0] in _GENERIC_NAME
 
 
+_SATB_ORDER = ("Sopran", "Alt", "Tenor", "Bass")
+
+
+def guess_generic_voices(score: Score) -> None:
+    generic = [vp for vp in score.parts if _is_generic_name(vp.part_name)]
+    positional = len(score.parts) == 4 and len(generic) == 4
+    for index, vp in enumerate(score.parts):
+        if not _is_generic_name(vp.part_name):
+            continue
+        if positional:
+            vp.guessed_voice = _SATB_ORDER[index]
+        else:
+            vp.guessed_voice = _guess_voice_from_range(vp.notes)
+
+
 def load_score(path: str) -> Score:
     root = ET.fromstring(_read_xml(path))
     part_names: dict[str, str] = {}
@@ -216,7 +232,16 @@ def load_score(path: str) -> Score:
                             del open_ties[key]
                         continue
 
-                    note_event = NoteEvent(onset=onset, duration=dur_beats, midi=midi)
+                    syllable = None
+                    lyric = _child(elem, "lyric")
+                    if lyric is not None:
+                        text_el = _child(lyric, "text")
+                        if text_el is not None and text_el.text:
+                            syllable = text_el.text.strip() or None
+
+                    note_event = NoteEvent(
+                        onset=onset, duration=dur_beats, midi=midi, syllable=syllable
+                    )
                     vkey = (part_id, voice)
                     vp = voices.get(vkey)
                     if vp is None:
@@ -236,7 +261,6 @@ def load_score(path: str) -> Score:
         if _is_generic_name(vp.part_name):
             vp.guessed_voice = _guess_voice_from_range(vp.notes)
         vp.notes.sort(key=lambda n: (n.onset, n.midi))
-
     return Score(
         parts=parts,
         tempo_bpm=score_tempo if parts else DEFAULT_TEMPO_BPM,
