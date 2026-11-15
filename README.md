@@ -43,11 +43,20 @@ Stimme wird als menschlich klingende Singstimme (Vokalsynthese) erzeugt, die
    Anwendung nicht interaktiv (z. B. in Skripten), schätzt sie die
    Stimmlage automatisch wie bei `--lage auto`.
 5. **Synthese:**
-   - **Gesangsstimme:** Formant-Synthese (Kehlkopf-Quelle + Vokal-Formanten),
-     mit Vibrato, Jitter und Atemrauschen – klingt wie ein gesungenes
-     „Aah/Ooh/Eh/Uuh". Jede Stimme erhält standardmäßig einen eigenen Vokal,
-     damit man sie akustisch gut unterscheiden kann; ist ein Text erkannt,
-     werden stattdessen dessen Silben gesungen.
+   - **Echte Menschenstimme (empfohlen):** Ist
+     [Piper](https://github.com/rhasspy/piper) installiert
+     (`pip install piper-tts`), singt eine echte deutsche Menschenstimme den
+     Text: Sopran und Alt mit einer weiblichen Stimme, Tenor und Bass mit
+     einer männlichen. Jede Silbe wird auf die exakte Tonhöhe und Dauer der
+     Note gebracht (Klangfarbe bleibt erhalten), Konsonanten bleiben
+     natürlich. Die Stimmenmodelle (~60 MB je Stimme) werden beim ersten
+     Lauf automatisch nach `~/.cache/choir_audio/piper/` geladen.
+   - **Synthetische Gesangsstimme (Ersatz):** Ohne Piper Formant-Synthese
+     (Kehlkopf-Quelle + Vokal-Formanten) mit Vibrato, Jitter und
+     Atemrauschen – klingt wie ein gesungenes „Aah/Ooh/Eh/Uuh". Jede Stimme
+     erhält standardmäßig einen eigenen Vokal, damit man sie akustisch gut
+     unterscheiden kann; ist ein Text erkannt, werden stattdessen dessen
+     Silben gesungen.
    - **Klavierbegleitung:** additive Synthese mit inharmo­nischen Teiltönen,
      Hämmer-Geräusch und typischem Ausklang.
 6. **Ausgabe pro Stimme:**
@@ -63,6 +72,7 @@ Stimme wird als menschlich klingende Singstimme (Vokalsynthese) erzeugt, die
 ```bash
 pip install -r requirements.txt        # numpy + pymupdf (für PDFs)
 pip install homr                       # Notenerkennung, nur für PDF/Bild nötig
+pip install piper-tts                  # echte Menschenstimmen (empfohlen)
 ```
 
 ### Wenn `pip` fehlt
@@ -146,7 +156,9 @@ python -m choir_audio noten.pdf --lage original --lyrics aus
 | `--tempo-scale` | Tempofaktor, z. B. `0.7` (Standard `1.0`) |
 | `--bpm` | Tempo überschreiben |
 | `--others-gain` | Lautstärke der Klavierbegleitung der übrigen Stimmen (Standard `0.35`) |
-| `--vokal` | Vokal der Gesangssynthese: `auto` (je Stimme a/o/e/u), `a`, `e`, `o`, `u`; bei erkanntem Text werden die Textsilben gesungen |
+| `--stimme` | `auto` (Standard): echte Menschenstimme, wenn Piper installiert, sonst synthetisch; `menschlich`: echte Menschenstimme erzwingen; `synthetisch`: künstliche Singstimme |
+| `--piper-stimme` | Piper-Stimmenmodell für alle Stimmen (z. B. `de_DE-thorsten-medium`); `auto` (Standard): weibliche Stimme für Sopran/Alt, männliche für Tenor/Bass |
+| `--vokal` | Vokal der synthetischen Gesangsstimme: `auto` (je Stimme a/o/e/u), `a`, `e`, `o`, `u`; bei erkanntem Text werden die Textsilben gesungen |
 | `--lage` | `fragen` (Standard): bei unsicherer Stimmlage Teilstück vorspielen und nachfragen; `auto`: stillschweigend schätzen und Oktave an die erkannte Stimmlage anpassen (z. B. Tenor eine Oktave tiefer); `original`: notierte Oktaven beibehalten |
 | `--lyrics` | `auto` (Standard): Liedtext erkennen und singen (MusicXML-Lyrics bzw. OCR bei PDF/Bild); `aus`: ohne Text |
 | `--a4` | Stimmton in Hz (Standard `440`) |

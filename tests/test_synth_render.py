@@ -56,7 +56,9 @@ class TestSynth(unittest.TestCase):
 
     def test_vocal_pitch_is_dominant(self):
         score = _score()
-        options = render.RenderOptions(count_in=False, midi=False)
+        options = render.RenderOptions(
+            count_in=False, midi=False, voice_engine="synthetisch"
+        )
         data = render.render_all(score, options)["01 Sopran (Gesang solo).wav"]
         sr = options.sr
         seg = data[0 : int(2 * 60.0 / 90.0 * sr)]

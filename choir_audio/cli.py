@@ -5,7 +5,7 @@ import os
 import sys
 import tempfile
 
-from . import midiio, omr, playback, render, voices
+from . import human_voice, midiio, omr, playback, render, voices
 
 _VOICE_ANSWERS = {
     "s": "Sopran",
@@ -146,6 +146,27 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--stimme",
+        default="auto",
+        choices=["auto", "menschlich", "synthetisch"],
+        help=(
+            "'menschlich' singt den Text mit einer echten Menschenstimme "
+            "(Piper-Sprachsynthese, weibliche Stimme für Sopran/Alt, "
+            "männliche für Tenor/Bass); 'synthetisch' nutzt die künstliche "
+            "Singstimme; 'auto' (Standard) nimmt menschlich, wenn Piper "
+            "installiert ist (pip install piper-tts)"
+        ),
+    )
+    parser.add_argument(
+        "--piper-stimme",
+        default="auto",
+        help=(
+            "Piper-Stimmenmodell für alle Stimmen, z. B. "
+            "de_DE-thorsten-medium; 'auto' wählt je Stimmlage eine passende "
+            "deutsche Stimme"
+        ),
+    )
+    parser.add_argument(
         "--lyrics",
         default="auto",
         choices=["auto", "aus"],
@@ -216,6 +237,8 @@ def main(argv: list[str] | None = None) -> int:
         count_in=not args.no_count_in,
         others_gain=args.others_gain,
         vowel=args.vokal,
+        voice_engine=args.stimme,
+        piper_voice=args.piper_stimme,
         modes=tuple(args.modes),
         midi=not args.no_midi,
     )
@@ -241,6 +264,16 @@ def main(argv: list[str] | None = None) -> int:
     syllable_count = sum(
         1 for p in score.parts for n in p.notes if n.syllable
     )
+    if args.stimme in ("auto", "menschlich") and not human_voice.tts_available():
+        print(
+            "Hinweis: Für echte Menschenstimmen Piper installieren "
+            "(pip install piper-tts) \u2013 vorerst singt die synthetische Stimme."
+        )
+    if syllable_count == 0:
+        print(
+            "Warnung: Kein Liedtext erkannt \u2013 die Stimmen singen nur Vokale. "
+            "MusicXML mit eingebettetem Text liefert bessere Ergebnisse als OCR."
+        )
     stimmlagen = []
     for part in score.parts:
         vt = voices.detect_voice_type(part)

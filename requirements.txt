@@ -1,2 +1,4 @@
 numpy>=1.24
 pymupdf>=1.24
+# optional: echte Menschenstimmen singen den Text (sonst synthetische Stimme)
+# pip install piper-tts

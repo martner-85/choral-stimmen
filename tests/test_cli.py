@@ -20,7 +20,7 @@ class TestCli(unittest.TestCase):
     def test_end_to_end(self):
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = os.path.join(tmp, "audio")
-            rc = main([EXAMPLE, "--out-dir", out_dir])
+            rc = main([EXAMPLE, "--out-dir", out_dir, "--stimme", "synthetisch"])
             self.assertEqual(rc, 0)
             files = sorted(os.listdir(out_dir))
             wavs = [f for f in files if f.endswith(".wav")]
@@ -49,7 +49,7 @@ class TestCli(unittest.TestCase):
     def test_modes_filter(self):
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = os.path.join(tmp, "audio")
-            rc = main([EXAMPLE, "--out-dir", out_dir, "--modes", "gesang-solo", "--no-midi"])
+            rc = main([EXAMPLE, "--out-dir", out_dir, "--modes", "gesang-solo", "--no-midi", "--stimme", "synthetisch"])
             self.assertEqual(rc, 0)
             files = sorted(os.listdir(out_dir))
             self.assertEqual(
@@ -127,6 +127,25 @@ class TestCli(unittest.TestCase):
             out=lambda text: None,
         )
         self.assertIsNone(uncertain.guessed_voice)
+
+    def test_end_to_end_human_voice(self):
+        from choir_audio import human_voice
+
+        model = human_voice.ensure_voice(human_voice.DEFAULT_VOICE, download=False)
+        if not model or not human_voice.tts_available():
+            self.skipTest("Piper oder Stimmenmodell nicht verfügbar")
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = os.path.join(tmp, "audio")
+            rc = main([EXAMPLE, "--out-dir", out_dir, "--stimme", "menschlich"])
+            self.assertEqual(rc, 0)
+            wavs = [f for f in os.listdir(out_dir) if f.endswith(".wav")]
+            self.assertEqual(len(wavs), 9)
+            self.assertTrue(
+                all(
+                    os.path.getsize(os.path.join(out_dir, f)) > 1000
+                    for f in wavs
+                )
+            )
 
     def test_module_entry(self):
         result = subprocess.run(

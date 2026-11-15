@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import synth, voices
+from . import human_voice, synth, voices
 from .musicxml import Score, VoicePart
 
 MODE_LABELS = {
@@ -28,6 +28,8 @@ class RenderOptions:
     count_in: bool = True
     others_gain: float = 0.35
     vowel: str = "auto"
+    voice_engine: str = "auto"
+    piper_voice: str = "auto"
     fit_range: bool = True
     modes: tuple[str, ...] = ("gesang-solo", "gesang-klavier", "klavier")
     midi: bool = True
@@ -71,16 +73,36 @@ def render_snippet(
     beats = min(max_beats, part.end if part.end > 0 else max_beats)
     beats = max(beats, 1.0)
     notes = [n for n in part.notes if n.onset < beats]
-    vocal = synth.render_vocal(
-        notes,
-        bpm,
-        beats,
-        options.sr,
-        options.a4,
-        vowel_for_part(0, options, None),
-        voice_type=None,
-    )
+    engine_voice = None
+    if any(n.syllable for n in notes):
+        engine_voice = human_voice_for(options, voices.detect_voice_type(part))
+    if engine_voice is not None:
+        vocal = human_voice.render_human_vocal(
+            notes, bpm, beats, options.sr, options.a4, engine_voice
+        )
+    else:
+        vocal = synth.render_vocal(
+            notes,
+            bpm,
+            beats,
+            options.sr,
+            options.a4,
+            vowel_for_part(0, options, None),
+            voice_type=None,
+        )
     return synth.normalize(vocal, VOCAL_PEAK)
+
+
+def piper_model_for(options: RenderOptions, voice_type: str | None) -> str:
+    if options.piper_voice != "auto":
+        return options.piper_voice
+    return human_voice.VOICE_FOR_TYPE.get(voice_type, human_voice.DEFAULT_VOICE)
+
+
+def human_voice_for(options: RenderOptions, voice_type: str | None):
+    if options.voice_engine == "synthetisch":
+        return None
+    return human_voice.get_human_voice(piper_model_for(options, voice_type))
 
 
 def _place(audio: np.ndarray, n_total: int, offset_sec: float, sr: int) -> np.ndarray:
@@ -105,15 +127,28 @@ def render_all(score: Score, options: RenderOptions) -> dict[str, np.ndarray]:
     for index, part in enumerate(score.parts):
         voice_type = voices.detect_voice_type(part)
         vowel = vowel_for_part(index, options, voice_type)
-        vocal = synth.render_vocal(
-            part.notes,
-            bpm,
-            total_beats,
-            options.sr,
-            options.a4,
-            vowel,
-            voice_type=voice_type,
-        )
+        engine_voice = None
+        if any(n.syllable for n in part.notes):
+            engine_voice = human_voice_for(options, voice_type)
+        if engine_voice is not None:
+            vocal = human_voice.render_human_vocal(
+                part.notes,
+                bpm,
+                total_beats,
+                options.sr,
+                options.a4,
+                engine_voice,
+            )
+        else:
+            vocal = synth.render_vocal(
+                part.notes,
+                bpm,
+                total_beats,
+                options.sr,
+                options.a4,
+                vowel,
+                voice_type=voice_type,
+            )
         vocal = synth.normalize(vocal, VOCAL_PEAK)
         vocal_audio.append((part, _place(vocal, n_total, count_in_sec, options.sr)))
 
