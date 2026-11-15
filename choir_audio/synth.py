@@ -94,15 +94,21 @@ def _vocal_tone(
     consonant: str | None,
     rng,
     formant_shift: float = 1.0,
+    timbre: dict | None = None,
 ) -> np.ndarray:
     n = int(round(dur_sec * sr))
     if n <= 0:
         return np.zeros(0)
     t = np.arange(n) / sr
+    timbre = timbre or {}
+    vib_rate = timbre.get("vibrato_rate", VIBRATO_HZ)
+    vib_depth = timbre.get("vibrato_depth", VIBRATO_DEPTH)
+    breath_level = timbre.get("breath", 0.012)
+    tilt = timbre.get("tilt", 0.0)
 
     vib = (
-        VIBRATO_DEPTH
-        * np.sin(2.0 * np.pi * VIBRATO_HZ * t + rng.uniform(0.0, 2.0 * np.pi))
+        vib_depth
+        * np.sin(2.0 * np.pi * vib_rate * t + rng.uniform(0.0, 2.0 * np.pi))
         * np.minimum(1.0, t / 0.35)
     )
     jitter_pts = rng.standard_normal(max(2, int(dur_sec / 0.05) + 2)) * 0.004
@@ -114,7 +120,7 @@ def _vocal_tone(
     source = np.zeros(n)
     for k in range(1, k_max + 1):
         source += np.sin(k * phase) / k
-    breath = rng.standard_normal(n) * 0.012
+    breath = rng.standard_normal(n) * breath_level
     source = source + breath
 
     spec = np.fft.rfft(source)
@@ -122,8 +128,9 @@ def _vocal_tone(
 
     vowel_list = vowels or ["a"]
     filtered_layers = []
+    tilt_curve = np.power(np.maximum(freqs, 40.0) / 1000.0, tilt)
     for vowel in vowel_list:
-        gain = _formant_gain(freqs, vowel, formant_shift)
+        gain = _formant_gain(freqs, vowel, formant_shift) * tilt_curve
         gain += 0.7 * np.exp(-0.5 * ((freqs - f0) / 70.0) ** 2)
         filtered_layers.append(np.fft.irfft(spec * gain, n))
 
@@ -194,6 +201,7 @@ def render_vocal(
 
     if formant_shift is None:
         formant_shift = voices.VOICE_FORMANT_SHIFT.get(voice_type, 1.0)
+    timbre = voices.VOICE_TIMBRE.get(voice_type)
     total_sec = beats_to_sec(total_beats, tempo_bpm)
     buf = np.zeros(int(round(total_sec * sr)) + sr // 5)
     rng = np.random.default_rng(42)
@@ -207,7 +215,9 @@ def render_vocal(
         else:
             note_vowels = [vowel]
             consonant = None
-        tone = _vocal_tone(f0, dur_sec, sr, note_vowels, consonant, rng, formant_shift)
+        tone = _vocal_tone(
+            f0, dur_sec, sr, note_vowels, consonant, rng, formant_shift, timbre
+        )
         start = int(round(beats_to_sec(note.onset, tempo_bpm) * sr))
         end = min(len(buf), start + len(tone))
         if end > start:

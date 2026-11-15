@@ -35,6 +35,36 @@ VOICE_DEFAULT_VOWEL = {
     "bass": "u",
 }
 
+VOICE_TIMBRE = {
+    "soprano": {
+        "vibrato_rate": 5.9,
+        "vibrato_depth": 0.014,
+        "breath": 0.016,
+        "tilt": 0.25,
+    },
+    "alto": {
+        "vibrato_rate": 5.3,
+        "vibrato_depth": 0.011,
+        "breath": 0.013,
+        "tilt": 0.05,
+    },
+    "tenor": {
+        "vibrato_rate": 5.0,
+        "vibrato_depth": 0.012,
+        "breath": 0.012,
+        "tilt": -0.1,
+    },
+    "bass": {
+        "vibrato_rate": 4.6,
+        "vibrato_depth": 0.008,
+        "breath": 0.009,
+        "tilt": -0.35,
+    },
+}
+
+_RANGE_BOUNDARIES = (48, 55, 62)
+_BOUNDARY_TOLERANCE = 2
+
 _VOICE_NAME_PATTERNS = {
     "soprano": ("sopran", "soprano", "discant", "s"),
     "alto": ("alt", "alto", "viola", "a"),
@@ -57,13 +87,21 @@ _PLOSIVES = set("pbtdkg")
 _FRICATIVES = set("fvsßzwchx")
 
 
-def detect_voice_type(part: VoicePart) -> str | None:
+def _name_voice_type(part: VoicePart) -> str | None:
     name = (part.part_name or "").strip().lower()
-    if name:
-        first = re.split(r"[\s\-_0-9]+", name)[0]
-        for voice_type, patterns in _VOICE_NAME_PATTERNS.items():
-            if name in patterns or first in patterns:
-                return voice_type
+    if not name:
+        return None
+    first = re.split(r"[\s\-_0-9]+", name)[0]
+    for voice_type, patterns in _VOICE_NAME_PATTERNS.items():
+        if name in patterns or first in patterns:
+            return voice_type
+    return None
+
+
+def detect_voice_type(part: VoicePart) -> str | None:
+    by_name = _name_voice_type(part)
+    if by_name:
+        return by_name
     if part.guessed_voice:
         guessed = part.guessed_voice.lower()
         mapping = {"sopran": "soprano", "alt": "alto", "tenor": "tenor", "bass": "bass"}
@@ -71,6 +109,22 @@ def detect_voice_type(part: VoicePart) -> str | None:
             if guessed.startswith(key):
                 return value
     return None
+
+
+def is_uncertain(part: VoicePart) -> bool:
+    if _name_voice_type(part):
+        return False
+    voice_type = detect_voice_type(part)
+    if voice_type is None:
+        return True
+    if not part.notes:
+        return True
+    midis = sorted(n.midi for n in part.notes)
+    median = midis[len(midis) // 2]
+    return any(
+        abs(median - boundary) <= _BOUNDARY_TOLERANCE
+        for boundary in _RANGE_BOUNDARIES
+    )
 
 
 def fit_octaves(notes: list[NoteEvent], voice_type: str) -> list[NoteEvent]:

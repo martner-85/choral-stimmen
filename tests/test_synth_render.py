@@ -118,6 +118,28 @@ class TestRender(unittest.TestCase):
         outputs = render.render_all(_score(), options)
         self.assertIn("01 Sopran (Gesang solo).wav", outputs)
 
+    def test_render_snippet(self):
+        score = _score()
+        options = render.RenderOptions()
+        snippet = render.render_snippet(score, score.parts[0], options, max_beats=8.0)
+        bpm = render.effective_tempo(score, options)
+        expected = int(round(synth.beats_to_sec(8.0, bpm) * options.sr))
+        self.assertLessEqual(len(snippet), expected + 100)
+        self.assertGreater(np.max(np.abs(snippet)), 0.01)
+
+    def test_render_snippet_sings_syllables(self):
+        from dataclasses import replace
+
+        score = _score()
+        score.parts[0].notes[0].syllable = "Sin"
+        plain_part = replace(
+            score.parts[0],
+            notes=[replace(n, syllable=None) for n in score.parts[0].notes],
+        )
+        snippet = render.render_snippet(score, score.parts[0], render.RenderOptions())
+        plain = render.render_snippet(score, plain_part, render.RenderOptions())
+        self.assertGreater(np.max(np.abs(snippet - plain)), 0.001)
+
     def test_write_wav(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "test.wav")

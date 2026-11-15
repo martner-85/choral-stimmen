@@ -3,8 +3,81 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 
-from . import midiio, omr, render, voices
+from . import midiio, omr, playback, render, voices
+
+_VOICE_ANSWERS = {
+    "s": "Sopran",
+    "sopran": "Sopran",
+    "soprano": "Sopran",
+    "a": "Alt",
+    "alt": "Alt",
+    "alto": "Alt",
+    "t": "Tenor",
+    "tenor": "Tenor",
+    "b": "Bass",
+    "bass": "Bass",
+    "baß": "Bass",
+}
+
+
+def _ask_voice(input_fn, out) -> str | None:
+    while True:
+        try:
+            answer = input_fn(
+                "Welche Stimmlage ist das? "
+                "[S]opran / [A]lt / [T]enor / [B]ass / Enter = überspringen: "
+            )
+        except (EOFError, KeyboardInterrupt):
+            out("")
+            return None
+        text = answer.strip().lower()
+        if not text or text in ("w", "weiter", "e", "enter", "überspringen", "skip"):
+            return None
+        if text in _VOICE_ANSWERS:
+            return _VOICE_ANSWERS[text]
+        out("Bitte S, A, T, B eingeben oder mit Enter überspringen.")
+
+
+def resolve_uncertain_voices(
+    score,
+    options,
+    *,
+    input_fn=input,
+    play_fn=playback.play_wav,
+    out=print,
+) -> None:
+    for index, part in enumerate(score.parts, start=1):
+        if not voices.is_uncertain(part):
+            continue
+        out(
+            f"\nStimme {index} ({part.part_name or 'unbenannt'}) konnte nicht "
+            "eindeutig einer Stimmlage zugeordnet werden."
+        )
+        out("Ich spiele ein Teilstück vor ...")
+        snippet = render.render_snippet(score, part, options)
+        fd, path = tempfile.mkstemp(suffix=".wav", prefix="stimmlage_")
+        os.close(fd)
+        played = False
+        try:
+            render.write_wav(path, snippet, options.sr)
+            played = play_fn(path)
+            if not played:
+                out(
+                    "Keine Audioausgabe gefunden. Das Teilstück liegt hier: "
+                    f"{path}"
+                )
+            answer = _ask_voice(input_fn, out)
+            if answer:
+                part.guessed_voice = answer
+                out(f"  -> Stimme {index} wird als {answer} gesungen.")
+        finally:
+            if played:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,12 +136,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--lage",
-        default="auto",
-        choices=["auto", "original"],
+        default="fragen",
+        choices=["fragen", "auto", "original"],
         help=(
-            "'auto' passt die Oktave an die erkannte Stimmlage an (z. B. Tenor "
-            "eine Oktave tiefer) und singt mit stimmtypischem Klang; "
-            "'original' lässt die notierte Oktave unverändert. Standard: auto"
+            "'fragen' (Standard) spielt bei unklarer Stimmlage ein Teilstück "
+            "vor und fragt nach; 'auto' schätzt stillschweigend und passt die "
+            "Oktave an die erkannte Stimmlage an (z. B. Tenor eine Oktave "
+            "tiefer); 'original' lässt die notierte Oktave unverändert"
         ),
     )
     parser.add_argument(
@@ -135,9 +209,6 @@ def main(argv: list[str] | None = None) -> int:
         print("Fehler: Keine Notenstimmen in der Datei gefunden.", file=sys.stderr)
         return 2
 
-    if args.lage == "auto":
-        score = voices.apply_voice_ranges(score)
-
     options = render.RenderOptions(
         tempo_scale=args.tempo_scale,
         bpm_override=args.bpm,
@@ -148,6 +219,17 @@ def main(argv: list[str] | None = None) -> int:
         modes=tuple(args.modes),
         midi=not args.no_midi,
     )
+
+    if args.lage == "fragen":
+        if sys.stdin.isatty() and sys.stdout.isatty():
+            resolve_uncertain_voices(score, options)
+        else:
+            print(
+                "Hinweis: Keine interaktive Eingabe möglich \u2013 Stimmlagen "
+                "werden automatisch geschätzt (wie --lage auto)."
+            )
+    if args.lage in ("auto", "fragen"):
+        score = voices.apply_voice_ranges(score)
 
     out_dir = args.out_dir or (
         os.path.splitext(os.path.abspath(args.eingabe))[0] + "_audio"

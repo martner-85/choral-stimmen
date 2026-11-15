@@ -35,6 +35,42 @@ class TestDetectVoiceType(unittest.TestCase):
         self.assertIsNone(voices.detect_voice_type(_part("Voice", [64])))
 
 
+class TestUncertainty(unittest.TestCase):
+    def test_named_voice_is_certain(self):
+        self.assertFalse(voices.is_uncertain(_part("Sopran", [64])))
+        self.assertFalse(voices.is_uncertain(_part("Bass", [48])))
+
+    def test_unknown_voice_is_uncertain(self):
+        self.assertTrue(voices.is_uncertain(_part("Voice", [64])))
+
+    def test_median_near_boundary_is_uncertain(self):
+        self.assertTrue(voices.is_uncertain(_part("Voice", [61], guessed="Sopran")))
+        self.assertTrue(voices.is_uncertain(_part("Voice", [63], guessed="Sopran")))
+        self.assertTrue(voices.is_uncertain(_part("Voice", [57], guessed="Alt")))
+
+    def test_median_clear_of_boundary_is_certain(self):
+        self.assertFalse(voices.is_uncertain(_part("Voice", [65], guessed="Sopran")))
+        self.assertFalse(voices.is_uncertain(_part("Voice", [52], guessed="Tenor")))
+
+    def test_no_notes_is_uncertain(self):
+        self.assertTrue(voices.is_uncertain(_part("Voice", [], guessed="Alt")))
+
+
+class TestVoiceTimbre(unittest.TestCase):
+    def test_timbre_defined_for_all_types(self):
+        for voice_type in voices.VOICE_TYPES:
+            self.assertIn(voice_type, voices.VOICE_TIMBRE)
+            timbre = voices.VOICE_TIMBRE[voice_type]
+            for key in ("vibrato_rate", "vibrato_depth", "breath", "tilt"):
+                self.assertIn(key, timbre)
+
+    def test_soprano_brighter_than_bass(self):
+        self.assertGreater(
+            voices.VOICE_TIMBRE["soprano"]["tilt"],
+            voices.VOICE_TIMBRE["bass"]["tilt"],
+        )
+
+
 class TestFitOctaves(unittest.TestCase):
     def test_tenor_misread_octave_shifted_down(self):
         notes = [NoteEvent(float(i), 4.0, m) for i, m in enumerate([67, 69, 65, 67])]

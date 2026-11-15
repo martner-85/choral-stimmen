@@ -61,6 +61,28 @@ def vowel_for_part(index: int, options: RenderOptions, voice_type: str | None) -
     return AUTO_VOWELS[index % len(AUTO_VOWELS)]
 
 
+def render_snippet(
+    score: Score,
+    part: VoicePart,
+    options: RenderOptions,
+    max_beats: float = 16.0,
+) -> np.ndarray:
+    bpm = effective_tempo(score, options)
+    beats = min(max_beats, part.end if part.end > 0 else max_beats)
+    beats = max(beats, 1.0)
+    notes = [n for n in part.notes if n.onset < beats]
+    vocal = synth.render_vocal(
+        notes,
+        bpm,
+        beats,
+        options.sr,
+        options.a4,
+        vowel_for_part(0, options, None),
+        voice_type=None,
+    )
+    return synth.normalize(vocal, VOCAL_PEAK)
+
+
 def _place(audio: np.ndarray, n_total: int, offset_sec: float, sr: int) -> np.ndarray:
     padded = np.zeros(n_total)
     start = int(round(offset_sec * sr))

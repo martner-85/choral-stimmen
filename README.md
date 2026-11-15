@@ -22,11 +22,26 @@ Stimme wird als menschlich klingende Singstimme (Vokalsynthese) erzeugt, die
    Die Singstimme spricht die Silben des Textes nach (inkl. Umlauten und
    Diphthongen wie „ei", „eu"), mit Ansatz der Anfangskonsonanten.
 4. **Stimmlage:** Die erkannte Stimmlage (Sopran/Alt/Tenor/Bass) steuert
-   Klangfarbe (Formanten) und Tonumfang der Synthese. Mit `--lage auto`
-   (Standard) wird zusätzlich eine offensichtlich falsch erkannte Oktave
-   korrigiert – z. B. ein Tenor, der wegen des Transpositionsschlüssels
-   eine Oktave zu hoch gelesen wurde. Mit `--lage original` bleibt die
-   notierte Oktave unverändert.
+   Klangfarbe und Tonumfang der Synthese: Jede Stimmlage singt mit
+   menschlich klingender, eigener Stimme – Sopran hell und beweglich,
+   Alt warm, Tenor brillant, Bass dunkel und ruhig (unterschiedliche
+   Formanten, Vibrato, Atemanteil und Klanghelligkeit je Register), und
+   der Text wird in der jeweiligen Tonlage gesungen. Mit `--lage fragen`
+   (Standard) fragt die Anwendung nach, wenn sie sich unsicher ist
+   (siehe unten); mit `--lage auto` wird eine offensichtlich falsch
+   erkannte Oktave automatisch korrigiert – z. B. ein Tenor, der wegen
+   des Transpositionsschlüssels eine Oktave zu hoch gelesen wurde. Mit
+   `--lage original` bleibt die notierte Oktave unverändert.
+
+   **Nachfrage bei Unsicherheit (`--lage fragen`):** Ist eine Stimme
+   nicht eindeutig einer Stimmlage zuzuordnen (kein aussagekräftiger
+   Stimmname und Tonlage nahe an der Grenze zwischen zwei Stimmlagen),
+   spielt die Anwendung ein Teilstück dieser Stimme vor (Standard-player
+   des Systems) und fragt: „Welche Stimmlage ist das?
+   [S]opran / [A]lt / [T]enor / [B]ass / Enter = überspringen“. Die
+   Antwort steuert dann Oktavkorrektur und Klangfarbe. Läuft die
+   Anwendung nicht interaktiv (z. B. in Skripten), schätzt sie die
+   Stimmlage automatisch wie bei `--lage auto`.
 5. **Synthese:**
    - **Gesangsstimme:** Formant-Synthese (Kehlkopf-Quelle + Vokal-Formanten),
      mit Vibrato, Jitter und Atemrauschen – klingt wie ein gesungenes
@@ -132,7 +147,7 @@ python -m choir_audio noten.pdf --lage original --lyrics aus
 | `--bpm` | Tempo überschreiben |
 | `--others-gain` | Lautstärke der Klavierbegleitung der übrigen Stimmen (Standard `0.35`) |
 | `--vokal` | Vokal der Gesangssynthese: `auto` (je Stimme a/o/e/u), `a`, `e`, `o`, `u`; bei erkanntem Text werden die Textsilben gesungen |
-| `--lage` | `auto` (Standard): Oktave an die erkannte Stimmlage anpassen (z. B. Tenor eine Oktave tiefer); `original`: notierte Oktaven beibehalten |
+| `--lage` | `fragen` (Standard): bei unsicherer Stimmlage Teilstück vorspielen und nachfragen; `auto`: stillschweigend schätzen und Oktave an die erkannte Stimmlage anpassen (z. B. Tenor eine Oktave tiefer); `original`: notierte Oktaven beibehalten |
 | `--lyrics` | `auto` (Standard): Liedtext erkennen und singen (MusicXML-Lyrics bzw. OCR bei PDF/Bild); `aus`: ohne Text |
 | `--a4` | Stimmton in Hz (Standard `440`) |
 | `--omr-dpi` | Auflösung beim Rastern von PDF-Seiten (Standard `200`) |
@@ -153,7 +168,7 @@ Hinweise:
   erzeugten MIDI-Dateien oder die Stimmenzahl im Log.
 - Satzteile mit Oktav-Transpositionsschlüsseln (z. B. Tenor im
   Violinschlüssel mit 8) können eine Oktave zu hoch erkannt werden; mit
-  `--lage auto` (Standard) wird das automatisch korrigiert.
+  `--lage auto` (bzw. die Nachfrage bei `--lage fragen`) korrigiert das.
 - Für verlässliche Ergebnisse ist MusicXML-Export aus dem Notensatzprogramm
   der PDF-Erkennung immer vorzuziehen – auch für den Text: Eingebettete
   MusicXML-Lyrics sind zuverlässiger als OCR.
