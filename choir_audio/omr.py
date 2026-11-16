@@ -204,25 +204,102 @@ def attach_ocr_lyrics(score: Score, image_path: str) -> int:
     return total
 
 
+def attach_lyric_lines(score: Score, lines: list[list[str]]) -> int:
+    if not lines or not score.parts:
+        return 0
+    total = 0
+    n_parts = len(score.parts)
+    cursors = [0] * n_parts
+    for line_index, syllables in enumerate(lines):
+        part_index = line_index % n_parts
+        part = score.parts[part_index]
+        i = cursors[part_index]
+        for syllable in syllables:
+            while i < len(part.notes) and part.notes[i].syllable is not None:
+                i += 1
+            if i >= len(part.notes):
+                break
+            part.notes[i].syllable = syllable
+            total += 1
+            i += 1
+        cursors[part_index] = i
+    return total
+
+
+def _run_page_isolated(
+    page_png: str,
+    out_dir: str,
+    page_index: int,
+    dpi: int,
+    lyrics: str,
+    pdf_path: str | None,
+) -> tuple[str, list[list[str]]]:
+    import json
+    import sys
+
+    xml_out = os.path.join(out_dir, f"seite_{page_index:02d}.musicxml")
+    command = [
+        sys.executable,
+        "-m",
+        "choir_audio.omr_page",
+        page_png,
+        xml_out,
+        "--lyrics",
+        lyrics,
+        "--dpi",
+        str(dpi),
+    ]
+    if pdf_path:
+        command.extend(["--pdf", pdf_path, "--page-index", str(page_index)])
+    result = subprocess.run(
+        command,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not os.path.isfile(xml_out):
+        detail = (result.stderr or "").strip().splitlines()
+        message = detail[-1] if detail else "unbekannter Fehler"
+        raise OmrError(
+            f"Notenerkennung auf Seite {page_index + 1} fehlgeschlagen: {message}"
+        )
+    lines: list[list[str]] = []
+    sidecar = xml_out[:-8] + ".json" if xml_out.endswith(".musicxml") else xml_out + ".json"
+    if os.path.isfile(sidecar):
+        with open(sidecar, encoding="utf-8") as fh:
+            lines = json.load(fh).get("lyric_lines", [])
+        os.unlink(sidecar)
+    return xml_out, lines
+
+
 def load_any(path: str, dpi: int = 200, lyrics: str = "auto") -> Score:
     lower = path.lower()
     if lower.endswith(PDF_EXTENSIONS):
         with tempfile.TemporaryDirectory(prefix="choir_omr_") as tmp:
             pages = rasterize_pdf(path, tmp, dpi=dpi)
             scores = []
-            for page in pages:
-                xml_path = _run_homr(page, tmp)
-                page_score = load_score(xml_path)
+            for index, page in enumerate(pages):
+                xml_out, lyric_lines = _run_page_isolated(
+                    page, tmp, index, dpi, lyrics, path
+                )
+                page_score = load_score(xml_out)
                 if lyrics == "auto":
-                    attach_ocr_lyrics(page_score, page)
+                    attach_lyric_lines(page_score, lyric_lines)
+                guess_generic_voices(page_score)
                 scores.append(page_score)
-            return merge_scores(scores)
+            merged = merge_scores(scores)
+            guess_generic_voices(merged)
+            return merged
     if lower.endswith(IMAGE_EXTENSIONS):
         with tempfile.TemporaryDirectory(prefix="choir_omr_") as tmp:
-            xml_path = _run_homr(path, tmp)
-            image_score = load_score(xml_path)
+            xml_out, lyric_lines = _run_page_isolated(
+                path, tmp, 0, dpi, lyrics, None
+            )
+            image_score = load_score(xml_out)
             if lyrics == "auto":
-                attach_ocr_lyrics(image_score, path)
+                attach_lyric_lines(image_score, lyric_lines)
+            guess_generic_voices(image_score)
             return image_score
     return load_score(path)
 

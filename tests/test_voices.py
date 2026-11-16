@@ -56,6 +56,16 @@ class TestUncertainty(unittest.TestCase):
         self.assertTrue(voices.is_uncertain(_part("Voice", [], guessed="Alt")))
 
 
+class TestInstrumentParts(unittest.TestCase):
+    def test_instrument_names(self):
+        for name in ("Piano", "Klavier", "Pno.", "Orgel", "Klavierbegleitung", "Organ"):
+            self.assertTrue(voices.is_instrument_part(_part(name, [60])), name)
+
+    def test_voice_names_not_instruments(self):
+        for name in ("Sopran", "Alt", "Tenor", "Bass", "Voice", "Chor"):
+            self.assertFalse(voices.is_instrument_part(_part(name, [60])), name)
+
+
 class TestVoiceTimbre(unittest.TestCase):
     def test_timbre_defined_for_all_types(self):
         for voice_type in voices.VOICE_TYPES:

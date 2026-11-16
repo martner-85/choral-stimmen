@@ -72,6 +72,17 @@ _VOICE_NAME_PATTERNS = {
     "bass": ("bass", "baß", "bariton", "baritone", "b"),
 }
 
+_INSTRUMENT_PATTERNS = (
+    "piano", "klavier", "pno", "orgel", "organ", "accomp",
+    "begleitung", "accompaniment", "continuo",
+)
+
+
+def is_instrument_part(part: VoicePart) -> bool:
+    name = (part.part_name or "").strip().lower()
+    return any(pattern in name for pattern in _INSTRUMENT_PATTERNS)
+
+
 _VOWEL_CHARS = "aeiouäöü"
 _DIPHTHONGS = {
     "ei": ("a", "e"),

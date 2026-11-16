@@ -213,6 +213,30 @@ Wenn das Ergebnis nicht reicht, ist der zuverlässigste Weg: die Noten
 exportieren** – eingebetteter Text und eindeutige Stimmen machen alle
 weiteren Schritte fehlerfrei.
 
+### Wenn eine gescannte Partitur zu komplex ist
+
+Gescannte Chorpartituren mit vielen Systemen pro Seite (z. B. TTBB plus
+Klavierbegleitung, vierstimmiger Satz auf zwei Systemen) übersteigen
+gelegentlich die Fähigkeiten der automatischen Notenerkennung: Die
+Systeme lassen sich nicht sauber trennen, und es entstünde ein einziger
+unbrauchbarer Part. Die App erkennt das und bricht mit einer klaren
+Fehlermeldung ab („Nur Instrumentalparts gefunden“ oder
+„Notenerkennung fehlgeschlagen“), statt fehlerhafte Audiodateien zu
+erzeugen.
+
+Für solche Vorlagen gibt es zwei bewährte Wege, die deutlich besser
+erkennen:
+
+1. **[Audiveris](https://github.com/Audiveris/audiveris)** (Open Source,
+   Windows-Installer): PDF öffnen, Ergebnis prüfen/korrigieren, dann
+   **MusicXML exportieren** und der App übergeben:
+   `python -m choir_audio lied.musicxml`
+2. **[MuseScore.com](https://musescore.com/import)**: PDF hochladen, im
+   Browser prüfen und als MusicXML herunterladen.
+
+In beiden Fällen sind Noten **und** Liedtext im Export enthalten – die
+App singt den Text dann direkt mit echten Menschenstimmen.
+
 Hinweise:
 - Die automatische Notenerkennung ist nicht fehlerfrei – besonders bei
   gescannten, schiefen oder dicht gesetzten Vorlagen. Kontrolliere die

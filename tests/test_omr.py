@@ -70,7 +70,11 @@ class TestLoadAny(unittest.TestCase):
 
     def test_pdf_requires_homr(self):
         with mock.patch.object(omr, "homr_available", return_value=False), \
-             mock.patch.object(omr, "_run_homr", side_effect=omr.OmrError("fehlt")):
+             mock.patch.object(
+                 omr,
+                 "_run_page_isolated",
+                 side_effect=omr.OmrError("fehlt"),
+             ):
             with self.assertRaises(omr.OmrError):
                 omr.load_any(EXAMPLE_PDF)
 

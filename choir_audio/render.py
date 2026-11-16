@@ -114,7 +114,11 @@ def _place(audio: np.ndarray, n_total: int, offset_sec: float, sr: int) -> np.nd
     return padded
 
 
-def render_all(score: Score, options: RenderOptions) -> dict[str, np.ndarray]:
+def render_all(
+    score: Score,
+    options: RenderOptions,
+    piano_parts: list[VoicePart] | None = None,
+) -> dict[str, np.ndarray]:
     bpm = effective_tempo(score, options)
     total_beats = total_beats_of(score)
     count_in_beats = score.beats_per_measure if options.count_in else 0.0
@@ -188,6 +192,10 @@ def render_all(score: Score, options: RenderOptions) -> dict[str, np.ndarray]:
 
     if "klavier" in options.modes:
         mix = sum(p for _, p in piano_audio)
+        for part in piano_parts or []:
+            extra = synth.render_piano(part.notes, bpm, total_beats, options.sr, options.a4)
+            extra = synth.normalize(extra, PIANO_PEAK)
+            mix = mix + _place(extra, len(mix), count_in_sec, options.sr)
         if n_voices > 1:
             mix = mix / np.sqrt(n_voices)
         outputs["00 Klavier (alle Stimmen).wav"] = synth.limit_peak(with_clicks(mix))

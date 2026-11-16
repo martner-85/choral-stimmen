@@ -230,6 +230,21 @@ def main(argv: list[str] | None = None) -> int:
         print("Fehler: Keine Notenstimmen in der Datei gefunden.", file=sys.stderr)
         return 2
 
+    instrumente = [p for p in score.parts if voices.is_instrument_part(p)]
+    if instrumente:
+        score.parts = [p for p in score.parts if not voices.is_instrument_part(p)]
+        if not score.parts:
+            print(
+                "Fehler: Nur Instrumentalparts (z. B. Klavier) gefunden – "
+                "keine Singstimmen.",
+                file=sys.stderr,
+            )
+            return 2
+        print(
+            f"Hinweis: {len(instrumente)} Instrumentalpart(s) ignoriert "
+            "(nur im Klavier-Gesamtstück enthalten)."
+        )
+
     options = render.RenderOptions(
         tempo_scale=args.tempo_scale,
         bpm_override=args.bpm,
@@ -285,7 +300,7 @@ def main(argv: list[str] | None = None) -> int:
         f"Tempo: {bpm:.0f} BPM | Silben: {syllable_count}"
     )
 
-    for filename, data in render.render_all(score, options).items():
+    for filename, data in render.render_all(score, options, piano_parts=instrumente).items():
         render.write_wav(os.path.join(out_dir, filename), data, options.sr)
         print(f"  WAV  {filename}")
 
