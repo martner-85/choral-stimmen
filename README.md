@@ -174,6 +174,45 @@ mit dem Open-Source-OMR-System
 [homr](https://github.com/liebharc/homr) (`pip install homr`) in MusicXML
 umgewandelt. Mehrseitige PDFs werden automatisch zusammengeführt.
 
+### Schritt für Schritt: Von der PDF zur Singstimme
+
+Sie müssen PDF-Dateien **nicht selbst umwandeln** – die App macht das
+selbst. So geht's:
+
+```bash
+# 1. Einmalig installieren (Notenerkennung + Menschenstimmen)
+python -m pip install -r requirements.txt
+python -m pip install homr piper-tts
+
+# 2. PDF verarbeiten – fertig
+python -m choir_audio lied.pdf
+```
+
+Die App erkennt Noten und Text automatisch, fragt bei unklaren Stimmlagen
+nach und erzeugt je Stimme die Gesangs-Audiodateien. Die Zeile
+`Stimmen erkannt: 4 (Sopran, Alt, Tenor, Bass) | Silben: 15` im Protokoll
+zeigt, wie viel erkannt wurde:
+
+- **Silben: 0** bedeutet, dass der Text nicht erkannt wurde – die Stimmen
+  singen dann nur Vokale. Die App warnt in dem Fall.
+- Steht eine falsche Stimmanzahl da, prüfe die erzeugten MIDI-Dateien.
+
+Damit die Erkennung gut funktioniert:
+
+- **Digitale PDFs** (direkt aus einem Notensatzprogramm exportiert) werden
+  deutlich besser erkannt als **Scans**.
+- Bei Scans: gerade ausgerichtet, scharf, guter Kontrast, keine
+  Durchscheins-Geister vom Blattrücken.
+- **Offenpartitur** (ein Notensystem je Stimme, Text unter dem zugehörigen
+  System) ist ideal – die Textzuordnung erfolgt pro System. Bei
+  geschlossener Partitur (2 Systeme mit je 2 Stimmen) ist sie unzuverlässig.
+- Kleine Noten oder dichte Seiten: `--omr-dpi 300` ausprobieren.
+
+Wenn das Ergebnis nicht reicht, ist der zuverlässigste Weg: die Noten
+(oder Korrekturen) in MuseScore & Co. eingeben und als **MusicXML
+exportieren** – eingebetteter Text und eindeutige Stimmen machen alle
+weiteren Schritte fehlerfrei.
+
 Hinweise:
 - Die automatische Notenerkennung ist nicht fehlerfrei – besonders bei
   gescannten, schiefen oder dicht gesetzten Vorlagen. Kontrolliere die
